@@ -1,79 +1,92 @@
 # Swarm Organization
 
-Swarm Organization is an MVP for turning short web project briefs into runnable deliverables.
-It takes a one-line request and pushes it through a full delivery loop:
+<p align="center">
+  <strong>Turn one-line briefs into production-ready deliverables.</strong>
+</p>
 
-`brief -> structured spec -> execution plan -> generated project -> runtime preview -> verification -> repair -> package`
+<p align="center">
+  <a href="https://github.com/lijinrui182/swarm-organization/releases"><img src="https://img.shields.io/github/v/release/lijinrui182/swarm-organization?include_prereleases&style=for-the-badge" alt="GitHub release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="MIT License"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-18+-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js 18+"></a>
+</p>
 
-The current implementation is intentionally pragmatic: a Node.js runtime that keeps the system runnable end-to-end while preserving clean stage boundaries for a later Python migration.
+**Swarm Organization** is an AI-powered delivery pipeline that takes a single-line project brief and orchestrates it through a complete production loop:
+
+`brief → spec → plan → generate → preview → verify → repair → package`
+
+You submit a request. The platform handles the rest — structured specs, code generation, quality verification, and final packaging.
 
 ![Swarm Organization Web UI](docs/assets/webui-dashboard.png)
 
-## What It Does
+[Quick Start](#quick-start) · [API Reference](#api-reference) · [Architecture](#architecture) · [Model Routing](#model-routing)
 
-- Accepts short project briefs from a Web UI or HTTP API
-- Translates the brief into a structured delivery spec
-- Builds a file plan and verification strategy
-- Generates a runnable website starter
-- Produces preview assets, a delivery report, and a zip package
-- Verifies engineering and content quality, then retries repair when needed
-- Exposes task state, events, metrics, artifacts, and model-routing status
+## Why This Exists
 
-## Why This Repo Exists
+Most AI demos stop at "generate some text" or "chat with a model."
 
-Most AI product demos stop at "generate some text" or "chat with a model."
-This project explores a different product shape: an order-style delivery system where the user submits a request and the platform orchestrates a production pipeline around it.
+Swarm Organization explores a different product shape: an **order-style delivery system** where the user submits a request and the platform orchestrates a full production pipeline around it. No prompt engineering required — just describe what you want.
 
-That makes it useful for validating:
+Use it to validate:
 
-- AI-assisted internal delivery tooling
-- brief-to-project automation flows
-- multi-stage orchestration around LLMs
-- verification and repair loops for generated outputs
-- product direction before investing in a heavier backend stack
+- **AI-assisted internal delivery tooling** — automate repetitive project scaffolding
+- **Brief-to-project automation flows** — convert requirements to runnable code
+- **Multi-stage LLM orchestration** — coordinate specialized models per pipeline stage
+- **Verification and repair loops** — auto-detect and fix quality issues
+- **Product direction** — test ideas before investing in a heavier backend stack
+
+## Highlights
+
+- **[7-Stage Pipeline](#product-shape)** — spec, plan, generate, runtime, verify, repair, package
+- **[Web Console](#web-console)** — control dashboard with workflow visualization, module status, and artifact previews
+- **[HTTP API](#api-reference)** — RESTful endpoints for task creation, status polling, and artifact retrieval
+- **[Model Routing](#model-routing)** — per-stage provider/model/fallback configuration via LiteLLM or direct providers
+- **[Quality Verification](#verification)** — automated checks for runtime health, file integrity, and content quality
+- **[Self-Healing](#product-shape)** — repair loop rebuilds and re-verifies when output fails checks
+- **[Portable Output](#output-artifacts)** — generates runnable project starters, previews, reports, and zip packages
+
+## How It Works
+
+```
+User Brief (Web UI / API)
+         │
+         ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Swarm Organization                    │
+│                                                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐│
+│  │   Spec   │→ │  Planner │→ │Generator │→ │Runtime  ││
+│  │ Builder  │  │          │  │          │  │         ││
+│  └──────────┘  └──────────┘  └──────────┘  └────┬────┘│
+│                                                  │     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐│     │
+│  │ Packager │← │ Repairer │← │    Verifier      ││     │
+│  │          │  │  (retry) │  │ (pass/fail gate) ││     │
+│  └──────────┘  └──────────┘  └──────────────────┘│     │
+└─────────────────────────────────────────────────────────┘
+         │
+         ▼
+   Preview / Report / Zip
+```
+
+Each stage is a discrete engine with clean boundaries, making the system easy to understand, test, and eventually migrate to the planned Python stack.
 
 ## Product Shape
 
-The system is organized as explicit delivery stages:
-
-1. `Spec Builder`
-   Turns a raw brief into structured project requirements.
-2. `Planner`
-   Produces steps, file targets, and verification expectations.
-3. `Generator`
-   Writes the runnable project starter and supporting files.
-4. `Runtime`
-   Loads the generated output and produces a preview asset.
-5. `Verifier`
-   Checks runtime health, required files, sections, and content quality.
-6. `Repairer`
-   Rebuilds and re-verifies when the output does not pass.
-7. `Packager`
-   Emits the final report, summary, and downloadable zip package.
-
-## Web UI
-
-The Web UI is designed as a control console rather than a chat surface.
-It shows:
-
-- task intake
-- workflow visualization
-- module status
-- artifact previews
-- task history
-- runtime and model-routing state
-
-Start the local server and open:
-
-```text
-http://127.0.0.1:3000
-```
+| Stage | Engine | Responsibility |
+|-------|--------|----------------|
+| 1. Spec Builder | `spec-builder.js` | Turns raw brief into structured project requirements |
+| 2. Planner | `planner-engine.js` | Produces execution steps, file targets, and verification expectations |
+| 3. Generator | `generator-engine.js` | Writes the runnable project starter and supporting files |
+| 4. Runtime | `runtime-engine.js` | Loads generated output and produces preview assets |
+| 5. Verifier | `verifier-engine.js` | Checks runtime health, required files, sections, and content quality |
+| 6. Repairer | `repairer-engine.js` | Rebuilds and re-verifies when output fails verification |
+| 7. Packager | `packager-engine.js` | Emits final report, summary, and downloadable zip package |
 
 ## Quick Start
 
 ### Requirements
 
-- Node.js 18+
+- **Node.js** 18+
 
 ### Install and Run
 
@@ -83,29 +96,40 @@ npm start
 
 Then open:
 
-```text
+```
 http://127.0.0.1:3000
 ```
 
-### Optional Environment Setup
+### Environment Setup (Optional)
 
-Copy `.env.example` to `.env` if you want to enable LiteLLM or direct provider routing:
+Copy `.env.example` to `.env` to enable LiteLLM gateway or direct provider routing:
 
 ```bash
 cp .env.example .env
 ```
 
-If no gateway or provider keys are configured, the system falls back to deterministic local behavior so the MVP remains runnable.
+If no gateway or provider keys are configured, the system falls back to deterministic local behavior — the MVP remains fully runnable without any external API keys.
+
+## Web Console
+
+The Web UI is designed as a **control console** rather than a chat surface. It shows:
+
+- **Task intake** — submit briefs with delivery type, framework, style, and platform options
+- **Workflow visualization** — real-time pipeline progress through all 7 stages
+- **Module status** — health and state of each engine
+- **Artifact previews** — generated previews, reports, and downloadable packages
+- **Task history** — track all past deliveries
+- **Model routing state** — active providers and fallback chains
 
 ## Usage
 
 ### From the Web UI
 
-1. Enter a short project brief.
-2. Pick delivery type, framework, style, and target platform.
-3. Submit the task.
-4. Watch the pipeline progress through spec, planning, generation, runtime, verification, repair, and packaging.
-5. Open the generated preview, report, summary, or zip artifact.
+1. Enter a short project brief
+2. Pick delivery type, framework, style, and target platform
+3. Submit the task
+4. Watch the pipeline progress through spec → plan → generate → runtime → verify → repair → package
+5. Open the generated preview, report, summary, or zip artifact
 
 ### From the API
 
@@ -130,64 +154,77 @@ curl http://127.0.0.1:3000/api/tasks
 curl http://127.0.0.1:3000/api/tasks/<task-id>
 ```
 
-## API Endpoints
+## API Reference
 
-- `GET /api/health`
-- `GET /api/model-status`
-- `GET /api/tasks`
-- `POST /api/tasks`
-- `GET /api/tasks/:id`
-- `GET /api/metrics`
-- `GET /api/events`
-- `GET /artifacts/...`
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Health check |
+| `/api/model-status` | GET | Model routing status |
+| `/api/tasks` | GET | List all tasks |
+| `/api/tasks` | POST | Create a new task |
+| `/api/tasks/:id` | GET | Get task status and details |
+| `/api/metrics` | GET | System metrics |
+| `/api/events` | GET | Event stream |
+| `/artifacts/...` | GET | Download generated artifacts |
 
 ## Output Artifacts
 
 Each successful task writes artifacts under `deliveries/<task-id>/`:
 
-- `project/`
-- `preview/home.svg`
-- `project.zip`
-- `delivery_report.json`
-- `delivery_summary.md`
+| Path | Description |
+|------|-------------|
+| `project/` | Generated runnable project starter |
+| `preview/home.svg` | Visual preview asset |
+| `project.zip` | Downloadable project package |
+| `delivery_report.json` | Structured delivery report |
+| `delivery_summary.md` | Human-readable delivery summary |
 
 ## Model Routing
 
-The backend supports staged model routing for:
+The backend supports staged model routing for each pipeline stage:
 
-- `Spec Builder`
-- `Planner`
-- `Generator`
-- `Verifier`
-- `Repairer`
-- `Finalizer`
+- **Spec Builder** — structured requirement extraction
+- **Planner** — execution plan generation
+- **Generator** — code and file generation
+- **Verifier** — quality assessment
+- **Repairer** — fix and rebuild
+- **Finalizer** — report and packaging
 
-You can configure provider, model, and fallback chains per stage via `.env.example`.
-The runtime supports both:
+Configure provider, model, and fallback chains per stage via `.env.example`.
 
-- LiteLLM gateway mode
-- direct provider mode
+Supported modes:
+- **LiteLLM gateway** — unified proxy for multiple providers
+- **Direct provider** — native API integration
+- **Deterministic fallback** — no external keys required for local development
 
-When neither is configured, deterministic fallback keeps the local system working.
-
-## Project Structure
+## Architecture
 
 ```text
 src/
-  core/        scheduler, task store, events, KB, cost, resource monitor
-  engines/     spec, planner, generator, runtime, verifier, repairer, packager
-  llm/         LiteLLM and direct-provider client
-  utils/       shared helpers
-web/           local Web UI
-scripts/       smoke and regression checks
-docs/          architecture notes and assets
-data/          local state and caches at runtime
-deliveries/    generated outputs at runtime
+  core/              Delivery engine, task store, event hub, knowledge base, cost manager, resource monitor
+  engines/           7 pipeline engines + model router
+  llm/               LiteLLM client and provider abstraction
+  utils/             Shared helpers (env, hash, id, json, zip)
+web/                 Local Web Console (HTML/CSS/JS)
+scripts/             Smoke tests and regression checks
+docs/                Architecture notes and assets
 ```
+
+### Key Subsystems
+
+- **[Delivery Engine](src/core/delivery-engine.js)** — orchestrates the 7-stage pipeline with state management
+- **[Task Store](src/core/task-store.js)** — file-based task persistence and status tracking
+- **[Event Hub](src/core/event-hub.js)** — real-time event streaming for UI and API consumers
+- **[Knowledge Base](src/core/knowledge-base.js)** — domain knowledge for spec and planning stages
+- **[Cost Manager](src/core/cost-manager.js)** — token usage tracking and cost estimation
+- **[Resource Monitor](src/core/resource-monitor.js)** — system resource usage and health checks
+- **[Model Router](src/engines/model-router.js)** — per-stage provider selection with fallback chains
+
+See [docs/architecture.md](docs/architecture.md) for detailed architecture documentation and migration direction.
 
 ## Verification
 
-Run the local smoke flow:
+Run local smoke test:
 
 ```bash
 npm run smoke
@@ -199,26 +236,27 @@ Run backend regression checks:
 npm run backend-check
 ```
 
-## Architecture Notes
-
-See [docs/architecture.md](docs/architecture.md) for the current stage architecture and migration direction.
-
 ## Current Constraints
 
-- This is an MVP, not a production multi-tenant system.
-- Persistence is still file-based.
-- The primary delivery target is a generated web project starter.
-- The long-term Python stack is planned but not yet implemented in this repo.
+- **MVP stage** — not a production multi-tenant system
+- **File-based persistence** — no database yet
+- **Web project focus** — primary delivery target is generated website starters
+- **Node.js runtime** — clean stage boundaries preserved for planned Python migration
 
-## Planned Direction
+## Roadmap
 
-The intended long-term stack is:
+The intended long-term stack:
 
-- Python
-- FastAPI
-- Pydantic
-- PostgreSQL
-- Redis
-- LangGraph
+- **Python** + **FastAPI** + **Pydantic**
+- **PostgreSQL** + **Redis**
+- **LangGraph** for orchestration
 
-This repository keeps the runtime in Node.js for now so the delivery loop remains executable on a minimal workstation.
+This repository keeps the runtime in Node.js for now so the delivery loop remains executable on a minimal workstation with zero infrastructure dependencies.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=lijinrui182/swarm-organization&type=date)](https://www.star-history.com/#lijinrui182/swarm-organization&type=date)
+
+## License
+
+[MIT](LICENSE)
