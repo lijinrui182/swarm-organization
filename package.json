@@ -1,0 +1,13 @@
+{
+  "name": "automatic-delivery-system",
+  "version": "1.0.0",
+  "description": "Order-style automatic web project delivery system MVP.",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "smoke": "node scripts/smoke-test.mjs",
+    "backend-check": "node scripts/backend-regression.js"
+  }
+}

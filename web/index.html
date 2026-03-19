@@ -1,0 +1,99 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 项目交付平台</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="noise-layer"></div>
+    <div class="grid-layer"></div>
+    <div class="ambient-glow glow-a"></div>
+    <div class="ambient-glow glow-b"></div>
+    <div class="ambient-glow glow-c"></div>
+
+    <div class="dashboard-shell">
+      <aside class="left-rail">
+        <section class="glass-card brand-card">
+          <div class="brand-lockup">
+            <div class="brand-mark" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div>
+              <p class="eyebrow">AI Delivery Operating System</p>
+              <h1>AI 项目交付平台</h1>
+            </div>
+          </div>
+          <p class="supporting-copy">
+            面向交付而非聊天的 AI 公司中控台。用户下达任务后，系统自动完成解析、编排、生成、测试、修复与交付。
+          </p>
+          <div id="brand-status-line" class="brand-pill-row"></div>
+          <div id="brand-kpi-grid" class="mini-metric-grid"></div>
+        </section>
+
+        <section class="glass-card rail-section">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Navigation</p>
+              <h2>项目导航</h2>
+            </div>
+          </div>
+          <div id="section-nav" class="stack-list"></div>
+        </section>
+
+        <section class="glass-card rail-section">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Active</p>
+              <h2>当前项目列表</h2>
+            </div>
+            <span id="current-project-count" class="count-pill">0</span>
+          </div>
+          <div id="current-project-list" class="stack-list"></div>
+        </section>
+
+        <section class="glass-card rail-section">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">History</p>
+              <h2>历史任务</h2>
+            </div>
+          </div>
+          <div id="history-task-list" class="stack-list"></div>
+        </section>
+
+        <section class="glass-card rail-section">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Templates</p>
+              <h2>模板入口</h2>
+            </div>
+          </div>
+          <div id="template-list" class="template-list"></div>
+        </section>
+
+        <button id="new-task-button" class="primary-cta rail-cta" type="button">新建任务</button>
+      </aside>
+
+      <main class="main-deck">
+        <section id="command-center" class="glass-card content-panel"></section>
+        <section id="workflow" class="glass-card content-panel"></section>
+        <section id="agents" class="glass-card content-panel"></section>
+        <section id="artifacts" class="glass-card content-panel"></section>
+      </main>
+
+      <aside class="right-rail">
+        <section id="system-status" class="glass-card right-panel"></section>
+        <section id="model-status-panel" class="glass-card right-panel"></section>
+        <section id="cost-panel" class="glass-card right-panel"></section>
+        <section id="runtime-panel" class="glass-card right-panel"></section>
+        <section id="deliverable-panel" class="glass-card right-panel"></section>
+      </aside>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
