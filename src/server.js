@@ -57,6 +57,118 @@ async function resolveArtifactPath(relativePath) {
   return stat.isDirectory() ? path.join(target, "index.html") : target;
 }
 
+async function fileExists(filePath) {
+  try {
+    await fsp.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function buildSetupGuide({ llmClient, modelRouter }) {
+  const envFile = path.join(config.ROOT_DIR, ".env");
+  const envExampleFile = path.join(config.ROOT_DIR, ".env.example");
+  const connection = llmClient.status();
+  const router = modelRouter.status();
+  const hybridProviders = [
+    ["MODEL_PROVIDER_SPEC_BUILDER", "deepseek"],
+    ["MODEL_PROVIDER_PLANNER", "deepseek"],
+    ["MODEL_PROVIDER_GENERATOR", "gemini"],
+    ["MODEL_PROVIDER_VERIFIER", "gemini"],
+    ["MODEL_PROVIDER_REPAIRER", "deepseek"],
+    ["MODEL_PROVIDER_FINALIZER", "deepseek"],
+  ];
+  const allDeepSeekProviders = hybridProviders.map(([key]) => [key, "deepseek"]);
+  const litellmBlock = [
+    "LITELLM_BASE_URL=http://127.0.0.1:4000",
+    "LITELLM_API_KEY=sk-your-litellm-key",
+    "LITELLM_TIMEOUT_MS=45000",
+    "",
+    ...hybridProviders.map(([key, value]) => `${key}=${value}`),
+  ].join("\n");
+  const hybridBlock = [
+    "DEEPSEEK_API_KEY=sk-your-deepseek-key",
+    "GOOGLE_API_KEY=your-google-api-key",
+    "",
+    ...hybridProviders.map(([key, value]) => `${key}=${value}`),
+  ].join("\n");
+  const deepseekBlock = [
+    "DEEPSEEK_API_KEY=sk-your-deepseek-key",
+    "",
+    ...allDeepSeekProviders.map(([key, value]) => `${key}=${value}`),
+  ].join("\n");
+  const directProviders = connection.directProviders || {};
+  const recommendedMode = connection.gatewayConfigured
+    ? "litellm"
+    : directProviders.deepseek && directProviders.gemini
+      ? "direct_hybrid"
+      : directProviders.deepseek
+        ? "direct_deepseek"
+        : "direct_hybrid";
+
+  return {
+    envFile,
+    envExampleFile,
+    envExists: await fileExists(envFile),
+    recommendedMode,
+    connection,
+    router,
+    steps: [
+      {
+        id: "copy-env",
+        title: "初始化 .env",
+        note: "第一次接入时先复制模板；如果 .env 已存在，这一步会跳过覆盖。",
+        command: `if (-not (Test-Path \"${envFile}\")) { Copy-Item \"${envExampleFile}\" \"${envFile}\" }`,
+      },
+      {
+        id: "open-env",
+        title: "打开配置文件",
+        note: "像 OpenClaw 一样，先选模式，再把对应配置块贴进 .env 保存。",
+        command: `notepad \"${envFile}\"`,
+      },
+      {
+        id: "start-console",
+        title: "启动控制台",
+        note: "保存 .env 后直接启动服务，页面会自动读取最新模型状态。",
+        command: "npm start",
+      },
+      {
+        id: "verify-routing",
+        title: "验证路由状态",
+        note: "确认 connection.enabled、gatewayConfigured 和每个 stage 的 route 是否正确。",
+        command: `Invoke-RestMethod http://127.0.0.1:${config.DEFAULT_PORT}/api/model-status | ConvertTo-Json -Depth 8`,
+      },
+    ],
+    modes: [
+      {
+        id: "litellm",
+        name: "LiteLLM 网关",
+        statusClass: connection.gatewayConfigured ? "succeeded" : "idle",
+        summary: "最像 OpenClaw 的统一入口：前端只配一次网关，后面只看阶段路由。",
+        bestFor: "已经有 LiteLLM、多模型网关或统一代理地址时。",
+        envBlock: litellmBlock,
+      },
+      {
+        id: "direct_hybrid",
+        name: "直连混合模式",
+        statusClass: directProviders.deepseek && directProviders.gemini ? "succeeded" : directProviders.deepseek || directProviders.gemini ? "running" : "idle",
+        summary: "Builder / Planner / Repair 用 DeepSeek，Generator / Verifier 用 Gemini，默认最均衡。",
+        bestFor: "没有 LiteLLM，但希望保留多模型分工时。",
+        envBlock: hybridBlock,
+      },
+      {
+        id: "direct_deepseek",
+        name: "直连 DeepSeek",
+        statusClass: directProviders.deepseek ? "running" : "idle",
+        summary: "单一 provider，最低心智负担，适合先跑通全链路。",
+        bestFor: "只想先把接入跑通，再逐步扩展模型组合时。",
+        envBlock: deepseekBlock,
+      },
+    ],
+  };
+}
+
 async function createApp() {
   await fsp.mkdir(config.DATA_DIR, { recursive: true });
   await fsp.mkdir(config.DELIVERIES_DIR, { recursive: true });
@@ -95,6 +207,7 @@ async function createApp() {
     try {
       if (url.pathname === "/api/health" && request.method === "GET") return void json(response, 200, { ok: true, now: new Date().toISOString() });
       if (url.pathname === "/api/model-status" && request.method === "GET") return void json(response, 200, { gatewayConfigured: llmClient.isLiteLLMEnabled(), modelClientEnabled: llmClient.isEnabled(), connection: llmClient.status(), baseUrl: config.LITELLM_BASE_URL || null, router: modelRouter.status() });
+      if (url.pathname === "/api/setup-guide" && request.method === "GET") return void json(response, 200, await buildSetupGuide({ llmClient, modelRouter }));
       if (url.pathname === "/api/tasks" && request.method === "GET") return void json(response, 200, { tasks: taskStore.listTasks(50) });
 
       if (url.pathname === "/api/tasks" && request.method === "POST") {
@@ -156,6 +269,8 @@ if (require.main === module) {
 module.exports = {
   startServer,
 };
+
+
 
 
 

@@ -1,5 +1,6 @@
 ﻿const SECTION_LINKS = [
   { id: "command-center", label: "任务下达", caption: "需求输入、交付类型与执行策略" },
+  { id: "api-onboarding", label: "API 接入", caption: "OpenClaw 风格终端引导与模型接入" },
   { id: "workflow", label: "执行流程", caption: "从需求解析到打包交付的链路图" },
   { id: "agents", label: "模块状态", caption: "AI 团队分工、模型与阶段输出" },
   { id: "artifacts", label: "产物预览", caption: "预览、文件树、日志与验收结果" },
@@ -52,6 +53,9 @@ const state = {
   selectedTaskId: null,
   modelStatus: null,
   systemMetrics: null,
+  setupGuide: null,
+  setupMode: "",
+  copyPayloads: {},
   isSubmitting: false,
   activeSection: "command-center",
   form: { prompt: "", outputType: "web_project", framework: "nextjs", style: "dark_tech", targetPlatform: "web" },
@@ -66,6 +70,7 @@ const elements = {
   historyTaskList: document.getElementById("history-task-list"),
   templateList: document.getElementById("template-list"),
   commandCenter: document.getElementById("command-center"),
+  apiOnboarding: document.getElementById("api-onboarding"),
   workflow: document.getElementById("workflow"),
   agents: document.getElementById("agents"),
   artifacts: document.getElementById("artifacts"),
@@ -533,6 +538,97 @@ function renderCommandCenter() {
   const prompt = document.getElementById("command-prompt");
   if (prompt) autoResizePrompt(prompt);
 }
+function registerCopyPayload(key, value) {
+  state.copyPayloads[key] = value;
+  return key;
+}
+
+function renderApiOnboarding() {
+  if (!elements.apiOnboarding) return;
+  const guide = state.setupGuide;
+  state.copyPayloads = {};
+  if (!guide) {
+    elements.apiOnboarding.innerHTML = '<div class="panel-heading"><p class="eyebrow">API Onboarding</p><h2>API 接入引导</h2><p class="panel-copy">正在读取网关与提供商状态，稍后这里会出现像 OpenClaw 一样的终端式接入步骤。</p></div>';
+    return;
+  }
+  const activeModeId = state.setupMode || guide.recommendedMode || guide.modes?.[0]?.id;
+  const activeMode = guide.modes.find((mode) => mode.id === activeModeId) || guide.modes[0];
+  state.setupMode = activeMode?.id || "";
+  const envCopyKey = registerCopyPayload(`env-${activeMode.id}`, activeMode.envBlock);
+  const verifyCommand = guide.steps.find((step) => step.id === "verify-routing")?.command || "";
+  elements.apiOnboarding.innerHTML = `
+    <div class="panel-top">
+      <div class="panel-heading">
+        <p class="eyebrow">API Onboarding</p>
+        <h2>像 OpenClaw 一样做 API 接入</h2>
+        <p class="panel-copy">不要让用户在文档里找配置。这里直接给出推荐接入模式、可复制的 PowerShell 命令，以及最小化的 .env 配置块。</p>
+      </div>
+      <div class="inline-tag-row">
+        <span class="micro-pill ${escapeHtml(guide.connection?.enabled ? "succeeded" : "failed")}">${escapeHtml(guide.connection?.enabled ? "API 已接入" : "等待接入")}</span>
+        <span class="micro-pill ${escapeHtml(guide.envExists ? "running" : "idle")}">${escapeHtml(guide.envExists ? ".env 已存在" : "待初始化 .env")}</span>
+      </div>
+    </div>
+    <div class="setup-grid">
+      <div class="setup-column">
+        <div class="mode-grid">
+          ${guide.modes.map((mode) => `
+            <button class="setup-mode-card ${mode.id === activeMode.id ? "active" : ""}" type="button" data-setup-mode="${escapeHtml(mode.id)}">
+              <div class="subpanel-head">
+                <div>
+                  <p class="eyebrow">${escapeHtml(mode.id === guide.recommendedMode ? "Recommended" : "Mode")}</p>
+                  <h3 class="subpanel-title">${escapeHtml(mode.name)}</h3>
+                </div>
+                <span class="status-pill ${escapeHtml(mode.statusClass)}">${escapeHtml(mode.id === guide.recommendedMode ? "推荐" : statusLabel(mode.statusClass === "idle" ? "pending" : mode.statusClass))}</span>
+              </div>
+              <p class="setup-note">${escapeHtml(mode.summary)}</p>
+              <span class="route-note">${escapeHtml(mode.bestFor)}</span>
+            </button>
+          `).join("")}
+        </div>
+        <article class="terminal-step setup-detail-card">
+          <div class="subpanel-head">
+            <div>
+              <p class="eyebrow">Selected Config</p>
+              <h3 class="subpanel-title">${escapeHtml(activeMode.name)}</h3>
+            </div>
+            <button class="subtle-button copy-button" type="button" data-copy-key="${escapeHtml(envCopyKey)}">复制配置块</button>
+          </div>
+          <div class="inline-tag-row">
+            <span class="micro-pill ${escapeHtml(activeMode.statusClass)}">${escapeHtml(activeMode.id === guide.recommendedMode ? "推荐模式" : "当前模式")}</span>
+            <span class="micro-pill idle">${escapeHtml(guide.envExists ? ".env 已定位" : ".env 待创建")}</span>
+          </div>
+          <pre class="terminal-code">${escapeHtml(activeMode.envBlock)}</pre>
+        </article>
+      </div>
+      <div class="setup-column">
+        <div class="terminal-step-list">
+          ${guide.steps.map((step, index) => {
+            const copyKey = registerCopyPayload(`step-${step.id}`, step.command);
+            return `
+              <article class="terminal-step">
+                <div class="subpanel-head">
+                  <div>
+                    <p class="eyebrow">Step ${String(index + 1).padStart(2, "0")}</p>
+                    <h3 class="subpanel-title">${escapeHtml(step.title)}</h3>
+                  </div>
+                  <button class="subtle-button copy-button" type="button" data-copy-key="${escapeHtml(copyKey)}">复制命令</button>
+                </div>
+                <p class="setup-note">${escapeHtml(step.note)}</p>
+                <pre class="terminal-code">${escapeHtml(step.command)}</pre>
+              </article>
+            `;
+          }).join("")}
+          <article class="terminal-step">
+            <div class="subpanel-head"><div><p class="eyebrow">Verification</p><h3 class="subpanel-title">当前检测结果</h3></div></div>
+            <p class="setup-note">接入完成后，执行验证命令，页面右侧的模型路由状态会同步更新。</p>
+            <pre class="terminal-code">${escapeHtml(verifyCommand || "Invoke-RestMethod http://127.0.0.1:3000/api/model-status | ConvertTo-Json -Depth 8")}</pre>
+          </article>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderWorkflow() {
   const selected = getSelectedTask();
   const currentStageId = getCurrentStageId(selected);
@@ -741,6 +837,7 @@ function render() {
   renderHistoryTaskList();
   renderTemplateList();
   renderCommandCenter();
+  renderApiOnboarding();
   renderWorkflow();
   renderAgents();
   renderArtifacts();
@@ -754,6 +851,19 @@ function render() {
 function autoResizePrompt(textarea) {
   textarea.style.height = "0px";
   textarea.style.height = `${Math.min(textarea.scrollHeight, 360)}px`;
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const input = document.createElement("textarea");
+  input.value = text;
+  document.body.appendChild(input);
+  input.select();
+  document.execCommand("copy");
+  document.body.removeChild(input);
 }
 
 async function fetchJson(url, options) {
@@ -781,8 +891,15 @@ async function refreshMetrics() {
   state.systemMetrics = await fetchJson("/api/metrics", { cache: "no-store" });
 }
 
+async function fetchSetupGuide() {
+  state.setupGuide = await fetchJson("/api/setup-guide", { cache: "no-store" });
+  if (!state.setupMode && state.setupGuide?.recommendedMode) {
+    state.setupMode = state.setupGuide.recommendedMode;
+  }
+}
+
 async function refreshAll(options = {}) {
-  const results = await Promise.allSettled([refreshTasks(options), refreshModelStatus(), refreshMetrics()]);
+  const results = await Promise.allSettled([refreshTasks(options), refreshModelStatus(), refreshMetrics(), fetchSetupGuide()]);
   const failure = results.find((result) => result.status === "rejected");
   if (failure) console.error(failure.reason);
   render();
@@ -852,6 +969,27 @@ function handleClick(event) {
     render();
     return;
   }
+  const setupModeButton = event.target.closest("[data-setup-mode]");
+  if (setupModeButton) {
+    state.setupMode = setupModeButton.dataset.setupMode || state.setupMode;
+    renderApiOnboarding();
+    return;
+  }
+  const copyButton = event.target.closest("[data-copy-key]");
+  if (copyButton) {
+    const payload = state.copyPayloads[copyButton.dataset.copyKey || ""];
+    if (!payload) return;
+    copyText(payload)
+      .then(() => {
+        const original = copyButton.textContent;
+        copyButton.textContent = "已复制";
+        window.setTimeout(() => {
+          copyButton.textContent = original;
+        }, 1400);
+      })
+      .catch((error) => window.alert(`复制失败: ${error.message}`));
+    return;
+  }
   const templateButton = event.target.closest("[data-template-id]");
   if (templateButton) {
     applyTemplate(templateButton.dataset.templateId);
@@ -910,5 +1048,15 @@ refreshAll({ preferLatest: true }).catch((error) => {
   render();
 });
 attachEventStream();
+
+
+
+
+
+
+
+
+
+
 
 
